@@ -2,6 +2,7 @@ import logging
 import requests
 import asyncio
 import math
+from premium_manager import is_premium
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from flask import Flask
