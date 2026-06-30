@@ -217,16 +217,15 @@ async def start_monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check(update): return
     global is_monitoring
     if not selected_device_id or not monitored_channel_id:
-        await update.message.reply_text("❌ Error: Device ya Channel set karna zaroori hai!")
+        await update.message.reply_text("❌ Error: Channel set karna zaroori hai!")
         return
     is_monitoring = True
     asyncio.create_task(monitor_task(update.effective_chat.id, context))
     await update.message.reply_text("🚀 Monitoring Started! Aab Message Bot Pe Aayenge OR Auto Token Verify Hoga.")
 
 async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global selected_device_id
-    # Yahan se is_monitoring hata diya hai taaki command hamesha chale
-    if update.channel_post and str(update.channel_post.chat.id) == monitored_channel_id:
+    global is_monitoring, selected_device_id
+    if is_monitoring and update.channel_post and str(update.channel_post.chat.id) == monitored_channel_id:
         msg_text = update.channel_post.text or ""
         try:
             target_number = ""
@@ -247,7 +246,6 @@ async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.effective_chat.send_message("❌ Format mismatch!")
         except Exception as e:
             await update.effective_chat.send_message(f"❌ Error: {str(e)}")
-
 if __name__ == '__main__':
     TOKEN = '8720005848:AAGxPsJFZTG1-4boeVFXoKYOMOK5QMnyuf4'
     app = ApplicationBuilder().token(TOKEN).build()
