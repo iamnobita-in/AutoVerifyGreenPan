@@ -224,8 +224,9 @@ async def start_monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🚀 Monitoring Started! Aab Message Bot Pe Aayenge OR Auto Token Verify Hoga.")
 
 async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global is_monitoring, selected_device_id
-    if is_monitoring and update.channel_post and str(update.channel_post.chat.id) == monitored_channel_id:
+    global selected_device_id
+    # Yahan se is_monitoring hata diya hai taaki command hamesha chale
+    if update.channel_post and str(update.channel_post.chat.id) == monitored_channel_id:
         msg_text = update.channel_post.text or ""
         try:
             target_number = ""
