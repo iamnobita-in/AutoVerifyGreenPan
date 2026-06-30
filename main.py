@@ -249,7 +249,7 @@ async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.effective_chat.send_message(f"❌ Error: {str(e)}")
 
 if __name__ == '__main__':
-    TOKEN = '8720005848:AAGxPsJFZTG1-4boeVFXoKYOMOK5QMnyuf4'
+    TOKEN = '8720005848:AAGxPsJFZTG1-4boeVFXoKYOMOK5QMnyuf44'
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("addpremium", add_premium))
