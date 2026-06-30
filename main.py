@@ -7,6 +7,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from flask import Flask
 from threading import Thread
+from datetime import datetime, timedelta
+from premium_manager import is_admin, load_premium, save_premium
 
 # Flask server for free hosting
 app_flask = Flask(__name__)
@@ -40,6 +42,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔥 **Step 1: Firebase URL set karne ke liye /setfirebase command use karein.**"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
+
+async def add_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_chat.id
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Sirf Admin hi ye command use kar sakta hai!")
+        return
+
+    if len(context.args) < 2:
+        await update.message.reply_text("❌ Format: /addpremium <chat_id> <days>")
+        return
+
+    target_chat_id = context.args[0]
+    days = int(context.args[1])
+    
+    data = load_premium()
+    expiry = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d')
+    data[target_chat_id] = expiry
+    save_premium(data)
+    
+    await update.message.reply_text(f"✅ User {target_chat_id} ko {days} din ka access mil gaya! Expiry: {expiry}")
 
 async def set_firebase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global firebase_base
@@ -196,6 +218,8 @@ async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await update.effective_chat.send_message(f"✅ SMS Sent to Webhook!\n🎯 To: {target_number}")
                 else:
                     await update.effective_chat.send_message(f"❌ Firebase Error: {response.status_code}")
+            else:
+                await update.effective_chat.send_message("❌ Format mismatch!")
         except Exception as e:
             await update.effective_chat.send_message(f"❌ Error: {str(e)}")
 
@@ -203,6 +227,7 @@ if __name__ == '__main__':
     TOKEN = '8720005848:AAGxPsJFZTG1-4boeVFXoKYOMOK5QMnyuf4'
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("addpremium", add_premium))
     app.add_handler(CommandHandler("setfirebase", set_firebase))
     app.add_handler(CommandHandler("setdevice", set_device))
     app.add_handler(CommandHandler("addchannel", add_channel))
