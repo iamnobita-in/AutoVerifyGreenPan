@@ -4,6 +4,15 @@ import asyncio
 import math
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+from flask import Flask
+from threading import Thread
+
+# Flask server for free hosting
+app_flask = Flask(__name__)
+@app_flask.route('/')
+def home(): return "Bot is running!"
+def run_flask(): app_flask.run(host='0.0.0.0', port=8080)
+Thread(target=run_flask).start()
 
 # Global variables
 firebase_base = None
