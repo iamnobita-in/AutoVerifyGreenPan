@@ -24,6 +24,11 @@ is_monitoring = False
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_chat.id
+    if not is_premium(user_id):
+        await update.message.reply_text("❌ Aap premium user nahi hain. Access ke liye admin se contact karein!")
+        return
+        
     help_text = (
         "🤖 **Welcome to the Bot!**\n\n"
         "Ye bot tumhari devices aur channel ke beech data ko manage karta hai.\n"
@@ -191,8 +196,6 @@ async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await update.effective_chat.send_message(f"✅ SMS Sent to Webhook!\n🎯 To: {target_number}")
                 else:
                     await update.effective_chat.send_message(f"❌ Firebase Error: {response.status_code}")
-            else:
-                await update.effective_chat.send_message("❌ Format mismatch!")
         except Exception as e:
             await update.effective_chat.send_message(f"❌ Error: {str(e)}")
 
