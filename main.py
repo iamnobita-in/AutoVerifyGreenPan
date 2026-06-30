@@ -25,12 +25,15 @@ is_monitoring = False
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_chat.id
-    if not is_premium(user_id):
+# Helper function to block non-premium
+async def check(update: Update):
+    if not is_premium(update.effective_chat.id):
         await update.message.reply_text("❌ Aap premium user nahi hain. Access ke liye admin se contact karein!")
-        return
-        
+        return False
+    return True
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check(update): return
     help_text = (
         "🤖 **Welcome to the Bot!**\n\n"
         "Ye bot tumhari devices aur channel ke beech data ko manage karta hai.\n"
@@ -63,7 +66,28 @@ async def add_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(f"✅ User {target_chat_id} ko {days} din ka access mil gaya! Expiry: {expiry}")
 
+async def remove_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_chat.id
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Sirf Admin hi ye command use kar sakta hai!")
+        return
+
+    if len(context.args) < 1:
+        await update.message.reply_text("❌ Format: /removepremium <chat_id>")
+        return
+
+    target_chat_id = context.args[0]
+    data = load_premium()
+    
+    if target_chat_id in data:
+        del data[target_chat_id]
+        save_premium(data)
+        await update.message.reply_text(f"✅ User {target_chat_id} ka premium access remove kar diya gaya hai.")
+    else:
+        await update.message.reply_text(f"❌ User {target_chat_id} premium list mein nahi mila.")
+
 async def set_firebase(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check(update): return
     global firebase_base
     if not context.args:
         await update.message.reply_text("❌ Usage: /setfirebase <url>\nExample: /setfirebase https://your-db.firebaseio.com")
@@ -78,6 +102,7 @@ async def set_firebase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('✅ Firebase Connect Successfully!\n\nNext Step: /setdevice command use karein.')
 
 async def set_device(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check(update): return
     await show_device_page(update, context, 0)
 
 async def show_device_page(update, context, page):
@@ -122,6 +147,7 @@ async def show_device_page(update, context, page):
         await update.message.reply_text(f"Error: {str(e)}")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check(update): return
     global selected_device_id
     query = update.callback_query
     await query.answer()
@@ -148,6 +174,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("❌ Operation Cancelled.")
 
 async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check(update): return
     global monitored_channel_id
     if not context.args:
         await update.message.reply_text("Usage: /addchannel <channel_id>")
@@ -191,6 +218,7 @@ async def monitor_task(chat_id, context):
         await asyncio.sleep(5)
 
 async def start_monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check(update): return
     global is_monitoring
     if not selected_device_id or not monitored_channel_id:
         await update.message.reply_text("❌ Error: Channel set karna zaroori hai!")
@@ -228,6 +256,7 @@ if __name__ == '__main__':
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("addpremium", add_premium))
+    app.add_handler(CommandHandler("removepremium", remove_premium))
     app.add_handler(CommandHandler("setfirebase", set_firebase))
     app.add_handler(CommandHandler("setdevice", set_device))
     app.add_handler(CommandHandler("addchannel", add_channel))
