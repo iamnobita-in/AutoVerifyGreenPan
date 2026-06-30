@@ -165,11 +165,11 @@ async def monitor_task(chat_id, context):
 async def start_monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global is_monitoring
     if not selected_device_id or not monitored_channel_id:
-        await update.message.reply_text("❌ Error: Device aur Channel dono set karna zaroori hai!")
+        await update.message.reply_text("❌ Error: Channel set karna zaroori hai!")
         return
     is_monitoring = True
     asyncio.create_task(monitor_task(update.effective_chat.id, context))
-    await update.message.reply_text("🚀 Monitoring Started! Ab sab kuch active hai.")
+    await update.message.reply_text("🚀 Monitoring Started! Aab Message Bot Pe Aayenge OR Auto Token Verify Hoga.")
 
 async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global is_monitoring, selected_device_id
