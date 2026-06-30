@@ -226,7 +226,7 @@ async def monitor_task(chat_id, context):
                             "📩 New Incoming SMS\n\n"
                             f"📱 From: {sender}\n"
                             f"🕒 Time: {time}\n\n"
-                            f"💬 Message:\n{message}"
+                            f"💬 Message: {message}"
                         )
                     else:
                         text = f"📩 New Incoming SMS\n\n{sms}"
@@ -254,7 +254,7 @@ async def monitor_task(chat_id, context):
                             "📩 New Incoming SMS\n\n"
                             f"📱 From: {sender}\n"
                             f"🕒 Time: {time}\n\n"
-                            f"💬 Message:\n{message}"
+                            f"💬 Message: {message}"
                         )
                     else:
                         text = f"📩 New Incoming SMS\n\n{msg}"
