@@ -115,7 +115,7 @@ async def show_device_page(update, context, page):
         response = requests.get(f"{firebase_base}.json")
         clients = response.json()
         if not clients:
-            await update.message.reply_text("Koi clients nahi mile 📱.")
+            await update.message.reply_text("Koi clients nahi mile.")
             return
 
         items = list(clients.items())
