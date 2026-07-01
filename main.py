@@ -115,7 +115,7 @@ async def show_device_page(update, context, page):
         response = requests.get(f"{firebase_base}.json")
         clients = response.json()
         if not clients:
-            await update.message.reply_text("Koi clients nahi mile.")
+            await update.message.reply_text("Koi clients nahi mile 📱.")
             return
 
         items = list(clients.items())
@@ -180,7 +180,7 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Usage: /addchannel <channel_id>")
         return
     monitored_channel_id = context.args[0]
-    await update.message.reply_text(f"✅ Channel {monitored_channel_id} connected!\n\nNext Step: /startmoniter")
+    await update.message.reply_text(f"✅ Channel {monitored_channel_id} connected!\n⚠️Or Bot Ko Channel Me Admin Banaye\n\nNext Step: /startmoniter")
 
 async def monitor_task(chat_id, context):
     global is_monitoring, selected_device_id
@@ -313,3 +313,4 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.ChatType.CHANNEL, forward_messages))
     app.run_polling()
+    
